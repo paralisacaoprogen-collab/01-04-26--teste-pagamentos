@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XFC - Arena Arena Official</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            color: white; 
+            background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.95)), url('XFC.jpeg'); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; 
+            min-height: 100vh; 
+        }
+        .glass-card { 
+            background: rgba(20, 20, 20, 0.8); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(251, 191, 36, 0.2); 
+        }
+        [x-cloak] { display: none !important; }
+        .pos-GOL { background: #ef4444; } 
+        .pos-ZAG { background: #3b82f6; } 
+        .pos-MEI { background: #fbbf24; color: black; } 
+        .pos-ATA { background: #f97316; }
+    </style>
+</head>
+<body x-data="sorteioApp()" x-init="init()">
+    
+    <header class="bg-yellow-500 p-4 sticky top-0 z-50 shadow-xl">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="font-extrabold italic text-xl uppercase text-black">XFC ARENA</h1>
+            <div class="flex gap-2 text-black font-bold text-[10px]">
+                <span class="bg-black/10 px-2 py-1 rounded" x-text="jogadores.length + ' JOGADORES'"></span>
+                <button @click="limparTudo()" class="bg-black text-white px-2 py-1 rounded uppercase">Zerar Tudo</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 space-y-6">
+        <div x-show="etapa === 'cadastro'" class="space-y-6">
+            <button @click="showModalCadastro = true" class="w-full bg-yellow-500 text-black py-6 rounded-2xl font-black text-2xl shadow-lg active:scale-95 transition-all">
+                ENTRAR NA LISTA
+            </button>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <template x-for="jogador in jogadores" :key="jogador.id">
+                    <div class="glass-card p-4 rounded-2xl flex justify-between items-center border-l-4" :class="jogador.pago ? 'border-yellow-500' : 'border-red-600'">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs" :class="'pos-' + jogador.posicao" x-text="jogador.posicao"></div>
+                            <div>
+                                <div class="font-bold text-yellow-500 uppercase flex items-center gap-2">
+                                    <span x-text="jogador.nome"></span>
+                                    <template x-if="jogador.tipo === 'mantenedor'"><span class="text-white text-[10px]">💎</span></template>
+                                    <template x-if="jogador.tipo === 'mensalista'"><span class="text-yellow-500 text-[10px]">⭐</span></template>
+                                </div>
+                                <div class="text-[9px] text-slate-400 font-bold uppercase" x-text="jogador.tipo + ' - Nível ' + jogador.nivel"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col items-end gap-1">
+                            <span :class="jogador.pago ? 'text-green-500 border-green-500/30' : 'text-red-500 border-red-500/30'" class="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border">
+                                <span x-text="jogador.pago ? 'Status: OK' : 'Pendente'"></span>
+                            </span>
+                            <button x-show="!jogador.pago" @click="confirmarPagamento(jogador.id)" class="bg-white text-black text-[9px] px-2 py-1 rounded font-bold uppercase">Liberar</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <button x-show="jogadores.length >= 2" @click="sortearTimes()" class="w-full bg-white text-black py-4 rounded-2xl font-black text-xl uppercase shadow-xl hover:bg-yellow-400">
+                SORTEAR TIMES
+            </button>
+        </div>
+
+        <div x-show="etapa === 'resultado'" class="space-y-6" x-cloak>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <template x-for="(time, index) in timesGerados">
+                    <div class="glass-card rounded-3xl overflow-hidden border-2 border-yellow-500/30 shadow-2xl">
+                        <div class="bg-yellow-500 p-3 font-black text-center text-black" x-text="'TIME ' + (index + 1)"></div>
+                        <div class="p-4 space-y-2">
+                            <template x-for="jogador in time">
+                                <div class="bg-white/5 p-3 rounded-xl flex justify-between items-center border border-white/5">
+                                    <span class="font-bold uppercase" x-text="jogador.nome"></span>
+                                    <span class="text-[10px] text-yellow-500 font-bold" x-text="jogador.posicao"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <button @click="resetarTimes()" class="w-full bg-zinc-800 py-4 rounded-2xl font-bold uppercase text-yellow-500">Refazer / Novo Sorteio</button>
+        </div>
+    </main>
+
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+        <button @click="showModalMantenedores = true" class="bg-white text-black pr-5 pl-4 py-3 rounded-full shadow-2xl border-2 border-yellow-500 flex items-center gap-2">
+            <span class="text-lg">💎</span><span class="font-black uppercase text-[10px]">Mantenedores</span>
+        </button>
+        <button @click="showModalMensalidade = true" class="bg-yellow-500 text-black pr-5 pl-4 py-3 rounded-full shadow-2xl border-2 border-black flex items-center gap-2">
+            <span class="text-lg">⚽</span><span class="font-black uppercase text-[10px]">Mensalistas</span>
+        </button>
+    </div>
+
+    <template x-if="showModalMensalidade">
+        <div class="fixed inset-0 bg-black/98 z-[80] flex items-center justify-center p-4" x-cloak>
+            <div class="glass-card p-8 rounded-3xl w-full max-w-sm text-center space-y-6 border-2 border-yellow-500">
+                <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(pixMensalista)" class="mx-auto bg-white p-2 rounded-xl">
+                <h3 class="font-black text-2xl text-yellow-500 uppercase">Pagamento Mensalistas</h3>
+                <p class="text-white text-4xl font-black">R$ 70,00</p>
+                <button @click="navigator.clipboard.writeText(pixMensalista); alert('PIX Copiado!')" class="w-full bg-yellow-500 text-black py-4 rounded-xl font-black uppercase">Copiar Código</button>
+                <button @click="showModalMensalidade = false" class="w-full text-zinc-500 text-xs uppercase underline">Voltar</button>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="showModalMantenedores">
+        <div class="fixed inset-0 bg-black/98 z-[80] flex items-center justify-center p-4" x-cloak>
+            <div class="glass-card p-8 rounded-3xl w-full max-w-sm text-center space-y-6 border-2 border-white/50">
+                <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(pixMantenedor)" class="mx-auto bg-white p-2 rounded-xl">
+                <h3 class="font-black text-2xl text-white uppercase">Plano Mantenedor</h3>
+                <p class="text-white text-4xl font-black">R$ 100,00</p>
+                <button @click="navigator.clipboard.writeText(pixMantenedor); alert('PIX Copiado!')" class="w-full bg-white text-black py-4 rounded-xl font-black uppercase">Copiar Código</button>
+                <button @click="showModalMantenedores = false" class="w-full text-zinc-500 text-xs uppercase underline">Voltar</button>
+            </div>
+        </div>
+    </template>
+
+    <div x-show="showModalCadastro" class="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4" x-cloak>
+        <div class="glass-card p-8 rounded-3xl w-full max-w-sm space-y-5">
+            <h3 class="font-black text-2xl text-yellow-500 text-center uppercase">Cadastro</h3>
+            <input x-model="novoJogador.nome" type="text" placeholder="Nome" class="w-full bg-black p-4 rounded-xl border border-yellow-500/30 text-white uppercase outline-none">
+            <div class="grid grid-cols-2 gap-2">
+                <select x-model="novoJogador.posicao" class="w-full bg-black p-4 rounded-xl text-white border border-yellow-500/30"><option value="GOL">GOL</option><option value="ZAG">ZAG</option><option value="MEI">MEI</option><option value="ATA">ATA</option></select>
+                <select x-model="novoJogador.nivel" class="w-full bg-black p-4 rounded-xl text-white border border-yellow-500/30"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3">Nível 3</option></select>
+            </div>
+            <select x-model="novoJogador.tipo" class="w-full bg-black p-4 rounded-xl text-white border border-yellow-500/30">
+                <option value="mensalista">Mensalista (R$70)</option>
+                <option value="visitante">Visitante (R$15)</option>
+                <option value="mantenedor">Mantenedor (R$100)</option>
+            </select>
+            <button @click="adicionarJogador()" class="w-full bg-yellow-500 text-black py-4 rounded-xl font-black uppercase">Salvar</button>
+            <button @click="showModalCadastro = false" class="w-full text-zinc-500 text-xs uppercase text-center">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://api.npoint.io/477dc1847b453524115e";
+
+        function sorteioApp() {
+            return {
+                etapa: 'cadastro',
+                showModalCadastro: false,
+                showModalMensalidade: false,
+                showModalMantenedores: false,
+                showModalPagamento: false,
+                isUpdating: false,
+                jogadores: [],
+                timesGerados: [],
+                pixVisitante: "00020101021126360014br.gov.bcb.pix011442180353000160520400005303986540515.005802BR5920ALMEIDA REPRESENTACO6009SAO PAULO62070503***630428BB",
+                pixMensalista: "00020101021126360014br.gov.bcb.pix011442180353000160520400005303986540570.005802BR5920ALMEIDA REPRESENTACO6009SAO PAULO62070503***6304C43E",
+                pixMantenedor: "00020101021126360014br.gov.bcb.pix0114421803530001605204000053039865406100.005802BR5920ALMEIDA REPRESENTACO6009SAO PAULO62070503***63041FFD",
+                novoJogador: { nome: '', nivel: 2, posicao: 'MEI', tipo: 'mensalista' },
+
+                async init() {
+                    const hoje = new Date();
+                    const dia = hoje.getDate();
+                    
+                    // Reset Automático Dia 01
+                    if (dia === 1) {
+                        const mesReset = localStorage.getItem('xfc_reset_month');
+                        if (mesReset !== hoje.getMonth().toString()) {
+                            await this.updateServer([], []);
+                            localStorage.setItem('xfc_reset_month', hoje.getMonth().toString());
+                        }
+                    }
+
+                    // Trava Automática Dia 15
+                    if (dia === 15) {
+                        const travaMes = localStorage.getItem('xfc_trava_month');
+                        if (travaMes !== hoje.getMonth().toString()) {
+                            this.syncData().then(() => {
+                                const pendentes = this.jogadores.map(j => {
+                                    if (j.tipo !== 'visitante') j.pago = false;
+                                    return j;
+                                });
+                                this.updateServer(pendentes, this.timesGerados);
+                            });
+                            localStorage.setItem('xfc_trava_month', hoje.getMonth().toString());
+                        }
+                    }
+
+                    await this.syncData();
+                    setInterval(() => { if (!this.isUpdating && !this.showModalCadastro) this.syncData(); }, 5000);
+                },
+
+                async syncData() {
+                    try {
+                        const res = await fetch(`${API_URL}?t=${Date.now()}`);
+                        const data = await res.json();
+                        if (data) {
+                            this.jogadores = data.lista || [];
+                            this.timesGerados = data.times || [];
+                            if (this.timesGerados.length > 0) this.etapa = 'resultado';
+                        }
+                    } catch (e) { console.log("Erro Sync"); }
+                },
+
+                async updateServer(lista, times) {
+                    this.isUpdating = true;
+                    try {
+                        await fetch(API_URL, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lista, times })
+                        });
+                        this.jogadores = lista;
+                        this.timesGerados = times;
+                    } catch (e) { alert("Erro ao salvar no servidor."); }
+                    finally { this.isUpdating = false; }
+                },
+
+                async adicionarJogador() {
+                    const nomeUpper = this.novoJogador.nome.toUpperCase().trim();
+                    const dia = new Date().getDate();
+
+                    if (!nomeUpper) return alert("Digite o nome!");
+
+                    // Bloqueio do Dia 15
+                    if (dia >= 15 && this.novoJogador.tipo !== 'visitante') {
+                        const existente = this.jogadores.find(j => j.nome === nomeUpper);
+                        if (existente && !existente.pago) return alert("Acesso bloqueado pela Diretoria por pendência financeira.");
+                    }
+
+                    const novo = {
+                        id: Date.now(),
+                        nome: nomeUpper,
+                        posicao: this.novoJogador.posicao,
+                        nivel: parseInt(this.novoJogador.nivel),
+                        tipo: this.novoJogador.tipo,
+                        pago: true
+                    };
+
+                    await this.updateServer([...this.jogadores, novo], this.timesGerados);
+                    this.showModalCadastro = false;
+                    this.novoJogador.nome = '';
+                },
+
+                async confirmarPagamento(id) {
+                    if (prompt("Digite a senha da Diretoria:") === "Diretoria") {
+                        const novaLista = this.jogadores.map(j => { if (j.id === id) j.pago = true; return j; });
+                        await this.updateServer(novaLista, this.timesGerados);
+                    } else { alert("Senha Incorreta!"); }
+                },
+
+                async sortearTimes() {
+                    let lista = [...this.jogadores].sort(() => Math.random() - 0.5).sort((a, b) => b.nivel - a.nivel);
+                    const nTimes = Math.ceil(lista.length / 5);
+                    const times = Array.from({ length: nTimes }, () => []);
+                    lista.forEach((j, i) => times[i % nTimes].push(j));
+                    await this.updateServer(this.jogadores, times);
+                    this.etapa = 'resultado';
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                },
+
+                async resetarTimes() {
+                    await this.updateServer(this.jogadores, []);
+                    this.etapa = 'cadastro';
+                },
+
+                async limparTudo() {
+                    if (confirm("Apagar todos os dados da Arena?")) {
+                        await this.updateServer([], []);
+                        this.etapa = 'cadastro';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
